@@ -1,45 +1,133 @@
 import { useState } from 'react';
+import { generateSong } from './services/lyricsService';
+import { storage } from './firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import axios from 'axios';
 import './index.css';
 
 function App() {
   const [lyrics, setLyrics] = useState('');
-  const [voiceType, setVoiceType] = useState('normal');
+  const [style, setStyle] = useState('Jazz');
+  const [loading, setLoading] = useState(false);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [error, setError] = useState(null);
 
   const handleGenerate = async () => {
-    console.log('Generating voice with:', { lyrics, voiceType });
-    // ここに音声生成のロジックを実装予定
+    if (!lyrics.trim()) {
+      setError('歌詞を入力してください');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const result = await generateSong(lyrics, style);
+
+      // 音声URLが返ってきた場合、Firebaseに保存
+      if (result.audio_url) {
+        // axiosを使用して音声データを取得
+        const audioResponse = await axios.get(result.audio_url, {
+          responseType: 'blob'
+        });
+        const audioBlob = audioResponse.data;
+        
+        // Firebase Storageに保存
+        const storageRef = ref(storage, `songs/${Date.now()}.mp3`);
+        await uploadBytes(storageRef, audioBlob);
+        const url = await getDownloadURL(storageRef);
+        
+        setAudioUrl(url);
+      }
+    } catch (err) {
+      setError('音声の生成に失敗しました: ' + (err.message || '不明なエラー'));
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTikTokShare = async () => {
+    if (!audioUrl) {
+      setError('先に音声を生成してください');
+      return;
+    }
+
+    try {
+      const response = await axios.get(audioUrl, {
+        responseType: 'blob'
+      });
+      const blob = response.data;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'tiktok_song.mp3';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      window.open('https://www.tiktok.com/upload', '_blank');
+    } catch (err) {
+      setError('ダウンロードに失敗しました');
+      console.error('Error:', err);
+    }
   };
 
   return (
     <div className="container">
       <div className="card">
-        <h1 className="title">TikTok Voice Generator</h1>
+        <h1 className="title">TikTok Song Generator</h1>
         
         <textarea
-          placeholder="歌詞を入力してください..."
+          placeholder="歌詞やプロンプトを入力してください..."
           value={lyrics}
           onChange={(e) => setLyrics(e.target.value)}
           className="input-area"
+          disabled={loading}
         />
         
         <select
-          value={voiceType}
-          onChange={(e) => setVoiceType(e.target.value)}
+          value={style}
+          onChange={(e) => setStyle(e.target.value)}
           className="select-voice"
+          disabled={loading}
         >
-          <option value="normal">普通の声</option>
-          <option value="robot">ロボットボイス</option>
-          <option value="energetic">元気な声</option>
+          <option value="Jazz">ジャズ</option>
+          <option value="Pop">ポップ</option>
+          <option value="Rock">ロック</option>
+          <option value="Classical">クラシック</option>
         </select>
+
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
 
         <div className="button-container">
           <button
             onClick={handleGenerate}
             className="button button-generate"
+            disabled={loading || !lyrics.trim()}
           >
-            音声を生成
+            {loading ? '生成中...' : '音声を生成'}
           </button>
-          <button className="button button-tiktok">
+
+          {audioUrl && (
+            <div className="audio-preview">
+              <audio controls>
+                <source src={audioUrl} type="audio/mpeg" />
+                お使いのブラウザは音声再生をサポートしていません。
+              </audio>
+            </div>
+          )}
+
+          <button
+            onClick={handleTikTokShare}
+            className="button button-tiktok"
+            disabled={!audioUrl || loading}
+          >
             TikTokに投稿
           </button>
         </div>

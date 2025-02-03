@@ -71,3 +71,32 @@
   .button-tiktok:hover {
     background-color: #dc2626;
   }
+  .error {
+    color: #dc2626;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+  
+  .audio-preview {
+    width: 100%;
+    margin: 1rem 0;
+  }
+  
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .select-voice {
+    background-image: url("data:image/svg+xml,...");  /* セレクトボックスの矢印 */
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1.5em 1.5em;
+  }
+  
+  .button-generate {
+    background-color: #6366f1;  /* インディゴ色に変更 */
+  }
+  
+  .button-generate:hover {
+    background-color: #4f46e5;
+  }

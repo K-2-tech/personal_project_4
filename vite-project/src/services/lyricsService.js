@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 export const generateSong = async (lyrics, style = 'Jazz') => {
-  const API_KEY = import.meta.env.VITE_ERWEIMA_API_KEY;
+  const API_KEY = import.meta.env.VITE_SUNO_API_KEY;
   const CALLBACK_URL = import.meta.env.VITE_CALLBACK_URL || 'https://example/callBackUrl';
 
   const options = {

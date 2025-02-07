@@ -1,8 +1,8 @@
+// App.jsx
 import { useState } from 'react';
 import { generateSong } from './services/lyricsService';
 import { storage } from './firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import axios from 'axios';
 import './index.css';
 
 function App() {
@@ -11,6 +11,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
   const [error, setError] = useState(null);
+  const [apiError, setApiError] = useState(null); // API専用のエラー状態
 
   const handleGenerate = async () => {
     if (!lyrics.trim()) {
@@ -21,56 +22,38 @@ function App() {
     try {
       setLoading(true);
       setError(null);
+      setApiError(null); // API実行時にエラーをクリア
 
       const result = await generateSong(lyrics, style);
-
-      // 音声URLが返ってきた場合、Firebaseに保存
-      if (result.audio_url) {
-        // axiosを使用して音声データを取得
-        const audioResponse = await axios.get(result.audio_url, {
-          responseType: 'blob'
+      
+      if (result.code === 455) {
+        setApiError({
+          title: 'サーバーが混雑しています',
+          message: 'ただいまサーバーが混雑しているため、生成に失敗しました。\n時間を置いて再度お試しください。\n※クレジットは返還されます。'
         });
-        const audioBlob = audioResponse.data;
-        
-        // Firebase Storageに保存
-        const storageRef = ref(storage, `songs/${Date.now()}.mp3`);
-        await uploadBytes(storageRef, audioBlob);
-        const url = await getDownloadURL(storageRef);
-        
-        setAudioUrl(url);
+        return;
+      }
+
+      if (result.code !== 200) {
+        setApiError({
+          title: 'エラーが発生しました',
+          message: result.msg || '予期せぬエラーが発生しました'
+        });
+        return;
+      }
+
+      // 成功時の処理
+      if (result.download_url) {
+        setAudioUrl(result.download_url);
       }
     } catch (err) {
-      setError('音声の生成に失敗しました: ' + (err.message || '不明なエラー'));
+      setApiError({
+        title: 'エラーが発生しました',
+        message: err.response?.data?.msg || 'サーバーとの通信に失敗しました'
+      });
       console.error('Error:', err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleTikTokShare = async () => {
-    if (!audioUrl) {
-      setError('先に音声を生成してください');
-      return;
-    }
-
-    try {
-      const response = await axios.get(audioUrl, {
-        responseType: 'blob'
-      });
-      const blob = response.data;
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'tiktok_song.mp3';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-
-      window.open('https://www.tiktok.com/upload', '_blank');
-    } catch (err) {
-      setError('ダウンロードに失敗しました');
-      console.error('Error:', err);
     }
   };
 
@@ -99,9 +82,18 @@ function App() {
           <option value="Classical">クラシック</option>
         </select>
 
+        {/* 入力関連のエラー表示 */}
         {error && (
           <div className="error-message">
             {error}
+          </div>
+        )}
+
+        {/* API関連のエラー表示 */}
+        {apiError && (
+          <div className="api-error">
+            <h3 className="api-error-title">{apiError.title}</h3>
+            <p className="api-error-message">{apiError.message}</p>
           </div>
         )}
 
@@ -122,14 +114,6 @@ function App() {
               </audio>
             </div>
           )}
-
-          <button
-            onClick={handleTikTokShare}
-            className="button button-tiktok"
-            disabled={!audioUrl || loading}
-          >
-            TikTokに投稿
-          </button>
         </div>
       </div>
     </div>

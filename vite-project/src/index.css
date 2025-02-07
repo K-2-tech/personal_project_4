@@ -100,3 +100,23 @@
   .button-generate:hover {
     background-color: #4f46e5;
   }
+  .api-error {
+    background-color: #fff3cd;
+    border: 1px solid #ffeeba;
+    border-radius: 4px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .api-error-title {
+    color: #856404;
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin: 0 0 0.5rem 0;
+  }
+  
+  .api-error-message {
+    color: #856404;
+    margin: 0;
+    white-space: pre-line;  /* 改行を保持 */
+  }
